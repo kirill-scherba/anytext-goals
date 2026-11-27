@@ -10,7 +10,16 @@ const state = {
   deeds: [],
   filter: 'active',
   showDone: false,
+  goalQuery: '',
+  deedQuery: '',
 };
+
+// matches answers whether the text contains the query, case-insensitive; an empty query matches all.
+function matches(query, ...fields) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return fields.some((f) => String(f || '').toLowerCase().includes(q));
+}
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -58,6 +67,7 @@ function isStale(g) {
 function renderGoals() {
   const ul = $('goals');
   const visible = state.goals.filter((g) => {
+    if (!matches(state.goalQuery, g.title, g.description, (g.labels || []).join(' '))) return false;
     if (state.filter === 'all') return true;
     if (state.filter === 'stale') return isStale(g);
     return g.status === state.filter;
@@ -93,7 +103,10 @@ function renderGoals() {
 
 function renderDeeds() {
   const ul = $('deeds');
-  const visible = state.deeds.filter((d) => state.showDone || !d.done);
+  const visible = state.deeds.filter((d) => {
+    if (!state.showDone && d.done) return false;
+    return matches(state.deedQuery, d.text, goalTitle(d.goal));
+  });
   ul.innerHTML = visible.map((d) => {
     const left = deadlineLeft(d.due);
     const goal = goalTitle(d.goal);
@@ -267,6 +280,16 @@ $('deed-form').addEventListener('submit', async (ev) => {
   } catch (e) {
     showError(e);
   }
+});
+
+$('goal-search').addEventListener('input', (ev) => {
+  state.goalQuery = ev.target.value;
+  renderGoals();
+});
+
+$('deed-search').addEventListener('input', (ev) => {
+  state.deedQuery = ev.target.value;
+  renderDeeds();
 });
 
 $('show-stale').addEventListener('click', () => {

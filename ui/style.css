@@ -172,3 +172,6 @@ footer {
 
 /* The row of a deed: the text takes the place, the controls stay small. */
 .row .grow { flex: 1; }
+
+/* Search: with seventy-eight goals a list is not a list without one (27.11.2026). */
+.section-head input[type="search"] { width: 180px; }
