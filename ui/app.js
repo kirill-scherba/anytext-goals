@@ -109,8 +109,27 @@ function renderGoalPicker() {
 function renderBadges() {
   const open = state.deeds.filter((d) => !d.done).length;
   const active = state.goals.filter((g) => g.status === 'active').length;
-  $('badges').textContent = `${active} целей · ${open} дел`;
+  $('count-goals').textContent = active;
+  $('count-deeds').textContent = open;
 }
+
+// The tab is remembered: the next visit opens where the person left off.
+const TAB_KEY = 'anytext.goals.tab';
+
+function showTab(name) {
+  if (name !== 'goals' && name !== 'deeds') name = 'goals';
+  for (const btn of document.querySelectorAll('#tabs button[data-tab]')) {
+    btn.classList.toggle('active', btn.dataset.tab === name);
+  }
+  $('tab-goals').hidden = name !== 'goals';
+  $('tab-deeds').hidden = name !== 'deeds';
+  try { localStorage.setItem(TAB_KEY, name); } catch (e) { /* private mode */ }
+}
+
+$('tabs').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button[data-tab]');
+  if (btn) showTab(btn.dataset.tab);
+});
 
 async function load() {
   showError(null);
@@ -233,6 +252,10 @@ $('show-done').addEventListener('change', (ev) => {
 });
 
 $('refresh').addEventListener('click', () => load());
+
+let startTab = 'goals';
+try { startTab = localStorage.getItem(TAB_KEY) || 'goals'; } catch (e) { /* private mode */ }
+showTab(startTab);
 
 load();
 loadStatus();

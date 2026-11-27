@@ -17,7 +17,14 @@
   <main>
     <p class="hint" id="error" hidden></p>
 
-    <section>
+    <!-- Two tabs: goals and deeds are different rhythms (weeks against days), and a list at the bottom
+         of the other one is how deeds went unnoticed (27.11.2026). -->
+    <nav class="tabs" id="tabs">
+      <button type="button" data-tab="goals" class="active">Цели <span class="count" id="count-goals"></span></button>
+      <button type="button" data-tab="deeds">Дела <span class="count" id="count-deeds"></span></button>
+    </nav>
+
+    <section id="tab-goals">
       <div class="section-head">
         <h2>Цели</h2>
         <select id="goal-filter">
@@ -45,7 +52,7 @@
       <p class="stale" id="stale" hidden></p>
     </section>
 
-    <section>
+    <section id="tab-deeds" hidden>
       <div class="section-head">
         <h2>Дела</h2>
         <label class="check"><input type="checkbox" id="show-done" /> показывать закрытые</label>

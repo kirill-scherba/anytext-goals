@@ -145,3 +145,23 @@ footer {
   font-size: 12px;
   background: var(--card);
 }
+
+/* Tabs: two rhythms, two screens. The list of deeds was at the bottom of a long page, and a person
+   could not find it at all (27.11.2026). */
+.tabs {
+  display: flex;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  padding: 6px 10px;
+  cursor: pointer;
+  font: inherit;
+}
+.tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+.tabs .count { font-size: 11px; color: var(--muted); }
