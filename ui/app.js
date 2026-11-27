@@ -115,7 +115,7 @@ function renderBadges() {
 async function load() {
   showError(null);
   try {
-    const [goals, deeds] = await Promise.all([api('../api/goals'), api('../api/deeds')]);
+    const [goals, deeds] = await Promise.all([api('api/goals'), api('api/deeds')]);
     state.goals = goals.goals || [];
     state.deeds = deeds.deeds || [];
     renderGoals();
@@ -129,7 +129,7 @@ async function load() {
 
 async function loadStatus() {
   try {
-    const s = await api('../api/status');
+    const s = await api('api/status');
     $('status').textContent = `цели ${s.version} · шлюз ${s.gateway}`;
   } catch (e) {
     $('status').textContent = 'нет связи с модулем';
@@ -151,7 +151,7 @@ $('goals').addEventListener('click', async (ev) => {
   if (act === 'done') body.status = goal.status === 'done' ? 'active' : 'done';
   btn.disabled = true;
   try {
-    await api('../api/goals/update', body);
+    await api('api/goals/update', body);
     await load();
   } catch (e) {
     showError(e);
@@ -175,7 +175,7 @@ $('goal-form').addEventListener('submit', async (ev) => {
   const title = $('goal-title').value.trim();
   if (!title) return;
   try {
-    await api('../api/goals', {
+    await api('api/goals', {
       title,
       deadline: $('goal-deadline').value,
       priority: Number($('goal-priority').value) || 0,
@@ -197,9 +197,9 @@ $('deeds').addEventListener('click', async (ev) => {
   const id = li.dataset.id;
   try {
     if (target.matches('input[data-act="done"]')) {
-      await api('../api/deeds/update', { id, done: target.checked });
+      await api('api/deeds/update', { id, done: target.checked });
     } else if (target.matches('button[data-act="delete"]')) {
-      await api('../api/deeds/delete', { id });
+      await api('api/deeds/delete', { id });
     } else {
       return;
     }
@@ -214,7 +214,7 @@ $('deed-form').addEventListener('submit', async (ev) => {
   const text = $('deed-text').value.trim();
   if (!text) return;
   try {
-    await api('../api/deeds', { text, due: $('deed-due').value, goal: $('deed-goal').value });
+    await api('api/deeds', { text, due: $('deed-due').value, goal: $('deed-goal').value });
     $('deed-text').value = '';
     await load();
   } catch (e) {

@@ -8,17 +8,12 @@ package main
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
-	"io/fs"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 )
-
-//go:embed ui/index.html ui/app.js ui/style.css
-var uiFS embed.FS
 
 // app is the module: one memory of goals, one file of deeds.
 type app struct {
@@ -47,17 +42,10 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("POST /mcp", a.mcp)
 	mux.HandleFunc("GET /mcp", a.mcp)
 
-	sub, err := fs.Sub(uiFS, "ui")
-	if err == nil {
-		// Never cached: the module is updated in place, and a browser that keeps yesterday's app.js
-		// shows yesterday's screen — an empty one, once, was exactly that (27.11.2026).
-		files := http.StripPrefix("/ui/", http.FileServer(http.FS(sub)))
-		mux.Handle("GET /ui/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Cache-Control", "no-store")
-			files.ServeHTTP(w, r)
-		}))
-		mux.Handle("GET /", http.RedirectHandler("/ui/", http.StatusFound))
-	}
+	// The screen: one page with everything inside it, for the reason written in ui.go.
+	mux.HandleFunc("GET /{$}", a.page)
+	mux.HandleFunc("GET /ui", a.page)
+	mux.HandleFunc("GET /ui/{$}", a.page)
 	return mux
 }
 
