@@ -31,6 +31,7 @@
           <option value="active">активные</option>
           <option value="paused">на паузе</option>
           <option value="done">закрытые</option>
+          <option value="stale">не двигались</option>
           <option value="all">все</option>
         </select>
         <button type="button" class="text" id="new-goal">+ Цель</button>
@@ -42,14 +43,14 @@
         <input id="goal-priority" type="number" min="0" max="10" placeholder="приоритет" />
         <textarea id="goal-description" rows="2" placeholder="описание (необязательно)"></textarea>
         <div class="row">
-          <button type="submit" class="primary">Сохранить</button>
+          <button type="submit" class="primary" id="goal-save">Добавить цель</button>
           <button type="button" class="text" id="goal-cancel">Отмена</button>
         </div>
       </form>
 
       <ul class="goals" id="goals"></ul>
       <p class="empty" id="goals-empty" hidden>Целей нет.</p>
-      <p class="stale" id="stale" hidden></p>
+      <p class="stale" id="stale" hidden><button type="button" class="text" id="show-stale"></button></p>
     </section>
 
     <section id="tab-deeds" hidden>
@@ -59,9 +60,10 @@
       </div>
 
       <form id="deed-form" class="row">
-        <input id="deed-text" placeholder="что сделать — и Enter" maxlength="240" />
+        <input id="deed-text" placeholder="что сделать" maxlength="240" />
         <input id="deed-due" type="date" title="срок" />
         <select id="deed-goal" title="какую цель двигает"></select>
+        <button type="submit" class="primary">Добавить</button>
       </form>
 
       <ul class="deeds" id="deeds"></ul>

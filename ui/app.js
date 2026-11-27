@@ -51,9 +51,17 @@ function goalTitle(id) {
   return g ? g.title : '';
 }
 
+function isStale(g) {
+  return g.status === 'active' && g.updated_at && (Date.now() / 1000 - g.updated_at) > 90 * 86400;
+}
+
 function renderGoals() {
   const ul = $('goals');
-  const visible = state.goals.filter((g) => state.filter === 'all' || g.status === state.filter);
+  const visible = state.goals.filter((g) => {
+    if (state.filter === 'all') return true;
+    if (state.filter === 'stale') return isStale(g);
+    return g.status === state.filter;
+  });
   ul.innerHTML = visible.map((g) => {
     const left = deadlineLeft(g.deadline);
     const progress = Math.max(0, Math.min(100, g.progress || 0));
@@ -67,6 +75,7 @@ function renderGoals() {
         <span class="pct">${progress}%</span>
         ${left ? `<span class="left">${esc(left)}</span>` : ''}
         <span class="grow"></span>
+        <button type="button" class="text" data-act="edit" title="изменить">✎</button>
         <button type="button" class="text" data-act="plus" title="+10%">+10%</button>
         <button type="button" class="text" data-act="minus" title="−10%">−10%</button>
         <button type="button" class="text" data-act="pause">${g.status === 'paused' ? 'вернуть' : 'на паузу'}</button>
@@ -76,10 +85,10 @@ function renderGoals() {
   }).join('');
   $('goals-empty').hidden = visible.length > 0;
 
-  const stale = state.goals.filter((g) => g.status === 'active' && g.updated_at && (Date.now() / 1000 - g.updated_at) > 90 * 86400);
+  const stale = state.goals.filter(isStale);
   const box = $('stale');
-  box.hidden = stale.length === 0;
-  box.textContent = stale.length ? `Не двигались три месяца: ${stale.length}. Закрыть или запланировать?` : '';
+  box.hidden = stale.length === 0 || state.filter === 'stale';
+  $('show-stale').textContent = stale.length ? `Не двигались три месяца: ${stale.length}. Показать` : '';
 }
 
 function renderDeeds() {
@@ -163,6 +172,10 @@ $('goals').addEventListener('click', async (ev) => {
   const goal = state.goals.find((g) => g.id === li.dataset.id);
   if (!goal) return;
   const act = btn.dataset.act;
+  if (act === 'edit') {
+    openGoalForm(goal);
+    return;
+  }
   const body = { id: goal.id };
   if (act === 'plus') body.progress = Math.min(100, (goal.progress || 0) + 10);
   if (act === 'minus') body.progress = Math.max(0, (goal.progress || 0) - 10);
@@ -179,29 +192,43 @@ $('goals').addEventListener('click', async (ev) => {
   }
 });
 
-$('new-goal').addEventListener('click', () => {
+let editingGoal = null;
+
+function openGoalForm(goal) {
+  editingGoal = goal || null;
+  $('goal-title').value = goal ? goal.title : '';
+  $('goal-description').value = goal ? goal.description || '' : '';
+  $('goal-deadline').value = goal && goal.deadline ? String(goal.deadline).slice(0, 10) : '';
+  $('goal-priority').value = goal && goal.priority ? goal.priority : '';
+  $('goal-save').textContent = goal ? 'Сохранить' : 'Добавить цель';
   $('goal-form').hidden = false;
   $('goal-title').focus();
-});
+}
 
-$('goal-cancel').addEventListener('click', () => {
+function closeGoalForm() {
+  editingGoal = null;
   $('goal-form').hidden = true;
   $('goal-form').reset();
-});
+}
+
+$('new-goal').addEventListener('click', () => openGoalForm(null));
+
+$('goal-cancel').addEventListener('click', closeGoalForm);
 
 $('goal-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const title = $('goal-title').value.trim();
   if (!title) return;
+  const deadline = $('goal-deadline').value;
+  const priority = Number($('goal-priority').value) || 0;
+  const description = $('goal-description').value.trim();
   try {
-    await api('api/goals', {
-      title,
-      deadline: $('goal-deadline').value,
-      priority: Number($('goal-priority').value) || 0,
-      description: $('goal-description').value.trim(),
-    });
-    $('goal-form').reset();
-    $('goal-form').hidden = true;
+    if (editingGoal) {
+      await api('api/goals/update', { id: editingGoal.id, title, description, deadline, priority });
+    } else {
+      await api('api/goals', { title, deadline, priority, description });
+    }
+    closeGoalForm();
     await load();
   } catch (e) {
     showError(e);
@@ -236,9 +263,16 @@ $('deed-form').addEventListener('submit', async (ev) => {
     await api('api/deeds', { text, due: $('deed-due').value, goal: $('deed-goal').value });
     $('deed-text').value = '';
     await load();
+    showTab('deeds');
   } catch (e) {
     showError(e);
   }
+});
+
+$('show-stale').addEventListener('click', () => {
+  state.filter = 'stale';
+  $('goal-filter').value = 'stale';
+  renderGoals();
 });
 
 $('goal-filter').addEventListener('change', (ev) => {
