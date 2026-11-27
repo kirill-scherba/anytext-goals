@@ -1,0 +1,29 @@
+{
+  "id": "goals",
+  "names": {
+    "ru": "Цели",
+    "en": "Goals"
+  },
+  "description": {
+    "ru": "Цели установки и дела, которые их двигают: прогресс, сроки и короткий список на сегодня",
+    "en": "The installation's goals and the deeds that move them: progress, deadlines and today's list"
+  },
+  "category": "tools",
+  "binary": "anytext-goals",
+  "addr": "127.0.0.1:7880",
+  "args": [
+    "-addr",
+    "127.0.0.1:7880"
+  ],
+  "ui": "ui",
+  "mcp": "/mcp",
+  "auto_start": true,
+  "strip": true,
+  "platforms": [
+    "linux-amd64",
+    "linux-arm64",
+    "windows-amd64",
+    "darwin-arm64",
+    "darwin-amd64"
+  ]
+}

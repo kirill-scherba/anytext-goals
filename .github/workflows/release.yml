@@ -1,0 +1,119 @@
+# release — a tag v* builds every platform and attaches the binaries to a GitHub release.
+#
+# The catalogue is not written here. matrica-modules-dist rebuilds catalog.json from the repositories'
+# module.json declarations and their newest releases, so a catalogue entry cannot disagree with what was
+# actually published. What this workflow guarantees instead:
+#
+#   - the tag equals `const version` of main.go, so a build is never published under a version it does
+#     not claim;
+#   - the tests pass before anything is uploaded;
+#   - every asset carries its own .sha256, which is what the catalogue and the installation check.
+#
+# Build flags come from module.json ("strip"): this module must not be built with -s -w, because that
+# combination with -trimpath makes Defender delete the Windows binary mid-download (26.11.2026).
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: The tag is the version
+        id: version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          declared=$(grep -oP 'const version = "\K[^"]+' main.go)
+          echo "tag=$tag declared=$declared"
+          [ "$tag" = "$declared" ] || {
+            echo "::error::tag v$tag and const version \"$declared\" disagree"
+            exit 1
+          }
+          echo "version=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - run: go vet ./...
+      - run: go test ./...
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-amd64
+            goos: linux
+            goarch: amd64
+          - platform: linux-arm64
+            goos: linux
+            goarch: arm64
+          - platform: windows-amd64
+            goos: windows
+            goarch: amd64
+          - platform: darwin-arm64
+            goos: darwin
+            goarch: arm64
+          - platform: darwin-amd64
+            goos: darwin
+            goarch: amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary=$(python3 -c 'import json;print(json.load(open("module.json"))["binary"])')
+          strip=$(python3 -c 'import json;print(str(json.load(open("module.json")).get("strip", True)).lower())')
+          name="${binary}-${{ matrix.platform }}"
+          [ "${{ matrix.goos }}" = "windows" ] && name="$name.exe"
+          flags=(-trimpath)
+          [ "$strip" = "true" ] && flags+=(-ldflags "-s -w")
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
+            go build "${flags[@]}" -o "$name" .
+          sha256sum "$name" > "$name.sha256"
+          cat "$name.sha256"
+          echo "ASSET=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}
+          path: |
+            ${{ env.ASSET }}
+            ${{ env.ASSET }}.sha256
+
+  release:
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      - name: List what goes into the release
+        run: ls -la assets
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ needs.verify.outputs.version }}
+          files: assets/*
+          fail_on_unmatched_files: true
