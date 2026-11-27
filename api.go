@@ -49,7 +49,13 @@ func (a *app) routes() http.Handler {
 
 	sub, err := fs.Sub(uiFS, "ui")
 	if err == nil {
-		mux.Handle("GET /ui/", http.StripPrefix("/ui/", http.FileServer(http.FS(sub))))
+		// Never cached: the module is updated in place, and a browser that keeps yesterday's app.js
+		// shows yesterday's screen — an empty one, once, was exactly that (27.11.2026).
+		files := http.StripPrefix("/ui/", http.FileServer(http.FS(sub)))
+		mux.Handle("GET /ui/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-store")
+			files.ServeHTTP(w, r)
+		}))
 		mux.Handle("GET /", http.RedirectHandler("/ui/", http.StatusFound))
 	}
 	return mux
