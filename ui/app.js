@@ -12,6 +12,7 @@ const state = {
   showDone: false,
   goalQuery: '',
   deedQuery: '',
+  editingDeed: '',
 };
 
 // matches answers whether the text contains the query, case-insensitive; an empty query matches all.
@@ -55,6 +56,17 @@ function deadlineLeft(iso) {
   return '';
 }
 
+// ago answers how long ago a moment was: "сегодня", "3 дн. назад", "2 мес. назад".
+function ago(ts) {
+  if (!ts) return '';
+  const days = Math.floor((Date.now() / 1000 - ts) / 86400);
+  if (days <= 0) return 'сегодня';
+  if (days === 1) return 'вчера';
+  if (days < 30) return `${days} дн. назад`;
+  const months = Math.floor(days / 30);
+  return months < 12 ? `${months} мес. назад` : `${Math.floor(months / 12)} г. назад`;
+}
+
 function goalTitle(id) {
   const g = state.goals.find((x) => x.id === id);
   return g ? g.title : '';
@@ -75,14 +87,20 @@ function renderGoals() {
   ul.innerHTML = visible.map((g) => {
     const left = deadlineLeft(g.deadline);
     const progress = Math.max(0, Math.min(100, g.progress || 0));
+    const labels = (g.labels || []).map((l) => `<button type="button" class="label" data-label="${esc(l)}">${esc(l)}</button>`).join('');
+    const moved = ago(g.updated_at);
     return `<li class="goal" data-id="${esc(g.id)}">
       <div class="goal-top">
         <span class="title">${esc(g.title)}</span>
         <span class="prio" title="приоритет">${g.priority || 0}</span>
       </div>
+      ${g.description ? `<p class="desc">${esc(g.description)}</p>` : ''}
+      ${labels ? `<div class="labels">${labels}</div>` : ''}
       <div class="bar"><span style="width:${progress}%"></span></div>
       <div class="goal-bottom">
-        <span class="pct">${progress}%</span>
+        <input class="progress" type="number" min="0" max="100" step="5" value="${progress}"
+               data-act="progress" title="прогресс, %" /> %
+        ${moved ? `<span class="moved">двигалась ${esc(moved)}</span>` : ''}
         ${left ? `<span class="left">${esc(left)}</span>` : ''}
         <span class="grow"></span>
         <button type="button" class="text" data-act="edit" title="изменить">✎</button>
@@ -110,12 +128,25 @@ function renderDeeds() {
   ul.innerHTML = visible.map((d) => {
     const left = deadlineLeft(d.due);
     const goal = goalTitle(d.goal);
+    if (state.editingDeed === d.id) {
+      const options = ['<option value="">без цели</option>'].concat(
+        state.goals.filter((g) => g.status === 'active' || g.id === d.goal)
+          .map((g) => `<option value="${esc(g.id)}" ${g.id === d.goal ? 'selected' : ''}>${esc(g.title)}</option>`)).join('');
+      return `<li class="deed editing" data-id="${esc(d.id)}">
+        <input class="edit-text" value="${esc(d.text)}" maxlength="240" />
+        <input class="edit-due" type="date" value="${esc(d.due || '')}" />
+        <select class="edit-goal">${options}</select>
+        <button type="button" class="text" data-act="save" title="сохранить (Enter)">✓</button>
+        <button type="button" class="text" data-act="cancel" title="отменить (Esc)">×</button>
+      </li>`;
+    }
     return `<li class="deed${d.done ? ' done' : ''}" data-id="${esc(d.id)}">
       <input type="checkbox" ${d.done ? 'checked' : ''} data-act="done" title="сделано" />
-      <span class="text">${esc(d.text)}</span>
+      <span class="text" data-act="edit" title="изменить">${esc(d.text)}</span>
       ${goal ? `<span class="goal-tag">${esc(goal)}</span>` : ''}
       ${left ? `<span class="left">${esc(left)}</span>` : ''}
       <span class="grow"></span>
+      <button type="button" class="text" data-act="edit" title="изменить">✎</button>
       <button type="button" class="text" data-act="delete" title="удалить">×</button>
     </li>`;
   }).join('');
@@ -179,6 +210,14 @@ async function loadStatus() {
 
 // The goals: the screen moves them, the memory keeps them.
 $('goals').addEventListener('click', async (ev) => {
+  const chip = ev.target.closest('button[data-label]');
+  if (chip) {
+    // A label is a filter: one click and the list is what that label means.
+    $('goal-search').value = chip.dataset.label;
+    state.goalQuery = chip.dataset.label;
+    renderGoals();
+    return;
+  }
   const btn = ev.target.closest('button[data-act]');
   if (!btn) return;
   const li = btn.closest('li[data-id]');
@@ -224,6 +263,22 @@ function closeGoalForm() {
   $('goal-form').reset();
 }
 
+$('goals').addEventListener('change', async (ev) => {
+  const input = ev.target.closest('input[data-act="progress"]');
+  if (!input) return;
+  const li = input.closest('li[data-id]');
+  let value = Number(input.value);
+  if (!Number.isFinite(value)) value = 0;
+  value = Math.max(0, Math.min(100, Math.round(value)));
+  input.value = value;
+  try {
+    await api('api/goals/update', { id: li.dataset.id, progress: value });
+    await load();
+  } catch (e) {
+    showError(e);
+  }
+});
+
 $('new-goal').addEventListener('click', () => openGoalForm(null));
 
 $('goal-cancel').addEventListener('click', closeGoalForm);
@@ -254,17 +309,61 @@ $('deeds').addEventListener('click', async (ev) => {
   const li = target.closest('li[data-id]');
   if (!li) return;
   const id = li.dataset.id;
+  const act = target.dataset ? target.dataset.act : '';
   try {
     if (target.matches('input[data-act="done"]')) {
       await api('api/deeds/update', { id, done: target.checked });
-    } else if (target.matches('button[data-act="delete"]')) {
+    } else if (act === 'delete') {
       await api('api/deeds/delete', { id });
+    } else if (act === 'edit') {
+      state.editingDeed = id;
+      renderDeeds();
+      const field = li.querySelector('.edit-text');
+      if (field) field.focus();
+      return;
+    } else if (act === 'cancel') {
+      state.editingDeed = '';
+      renderDeeds();
+      return;
+    } else if (act === 'save') {
+      await saveDeed(li);
+      return;
     } else {
       return;
     }
     await load();
   } catch (e) {
     showError(e);
+  }
+});
+
+// saveDeed sends what the editing row says: the text, the date and the goal.
+async function saveDeed(li) {
+  const id = li.dataset.id;
+  const text = li.querySelector('.edit-text').value.trim();
+  if (!text) return;
+  const due = li.querySelector('.edit-due').value;
+  const goal = li.querySelector('.edit-goal').value;
+  try {
+    await api('api/deeds/update', { id, text, due, goal });
+    state.editingDeed = '';
+    await load();
+  } catch (e) {
+    showError(e);
+  }
+}
+
+// Enter saves the row, Esc throws the change away.
+$('deeds').addEventListener('keydown', (ev) => {
+  const li = ev.target.closest('li.editing');
+  if (!li) return;
+  if (ev.key === 'Enter') {
+    ev.preventDefault();
+    saveDeed(li);
+  } else if (ev.key === 'Escape') {
+    ev.preventDefault();
+    state.editingDeed = '';
+    renderDeeds();
   }
 });
 
