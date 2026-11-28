@@ -40,7 +40,7 @@
 
       <form id="goal-form" class="card" hidden>
         <input id="goal-title" data-i18n-placeholder="goalTitlePh" placeholder="чего хотите достичь" maxlength="160" />
-        <input id="goal-deadline" type="date" title="срок" />
+        <span id="goal-deadline-slot"></span>
         <input id="goal-priority" type="number" min="0" max="10" data-i18n-placeholder="priorityPh" placeholder="приоритет" />
         <input id="goal-labels" data-i18n-placeholder="labelsPh" placeholder="метки через запятую" maxlength="120" />
         <textarea id="goal-description" rows="2" data-i18n-placeholder="descPh" placeholder="описание (необязательно)"></textarea>
@@ -65,7 +65,7 @@
       <form id="deed-form" class="row">
         <input id="deed-text" data-i18n-placeholder="deedPh" placeholder="что сделать" maxlength="240" />
         <span id="deed-due-slot"></span>
-        <select id="deed-goal" title="какую цель двигает"></select>
+        <select id="deed-goal" data-i18n-title="deedGoal" title="какую цель двигает"></select>
         <button type="submit" class="primary" data-i18n="add">Добавить</button>
       </form>
 

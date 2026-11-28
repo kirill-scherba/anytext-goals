@@ -37,7 +37,7 @@ const STRINGS = {
     overdue: 'просрочено на {n} дн.', dueToday: 'срок сегодня', leftDays: 'осталось {n} дн.',
     edit: 'изменить', editTitle: 'изменить', plus10: '+10%', minus10: '−10%',
     toArchive: 'в архив', back: 'вернуть', close: 'закрыть', done: 'сделано', remove: 'удалить',
-    progress: 'прогресс, %', due: 'срок', saveHint: 'сохранить (Enter)', cancelHint: 'отменить (Esc)',
+    progress: 'прогресс, %', due: 'срок', deedGoal: 'какую цель двигает', saveHint: 'сохранить (Enter)', cancelHint: 'отменить (Esc)',
     noLink: 'нет связи с модулем', gateway: 'шлюз {gateway}', version: 'цели {version}',
     goalMissing: 'нет такой цели',
   },
@@ -56,7 +56,7 @@ const STRINGS = {
     overdue: '{n} days overdue', dueToday: 'due today', leftDays: '{n} days left',
     edit: 'edit', editTitle: 'edit', plus10: '+10%', minus10: '−10%',
     toArchive: 'archive', back: 'restore', close: 'complete', done: 'done', remove: 'delete',
-    progress: 'progress, %', due: 'due date', saveHint: 'save (Enter)', cancelHint: 'cancel (Esc)',
+    progress: 'progress, %', due: 'due date', deedGoal: 'which goal it moves', saveHint: 'save (Enter)', cancelHint: 'cancel (Esc)',
     noLink: 'the module is not answering', gateway: 'gateway {gateway}', version: 'goals {version}',
     goalMissing: 'no such goal',
   },
@@ -391,7 +391,7 @@ function renderDeeds() {
       </li>`;
     }
     return `<li class="deed${d.done ? ' done' : ''}" data-id="${esc(d.id)}">
-      <input type="checkbox" ${d.done ? 'checked' : ''} data-act="done" title="сделано" />
+      <input type="checkbox" ${d.done ? 'checked' : ''} data-act="done" title="${esc(t('done'))}" />
       <span class="deed-text" data-act="edit" title="${esc(t('editTitle'))}">${esc(d.text)}</span>
       ${goal ? `<span class="goal-tag">${esc(goal)}</span>` : ''}
       ${left ? `<span class="left">${esc(left)}</span>` : ''}
@@ -540,7 +540,7 @@ $('goal-form').addEventListener('submit', async (ev) => {
   ev.preventDefault();
   const title = $('goal-title').value.trim();
   if (!title) return;
-  const deadline = $('goal-deadline').value;
+  const deadline = dateValue($('goal-deadline'));
   const priority = Number($('goal-priority').value) || 0;
   const description = $('goal-description').value.trim();
   const labels = $('goal-labels').value.trim();
@@ -699,6 +699,7 @@ applyTexts();
 
 // the deed form's date control: rendered once, its value read by dateValue()
 $('deed-due-slot').innerHTML = dateField('', { id: 'deed-due' });
+$('goal-deadline-slot').innerHTML = dateField('', { id: 'goal-deadline' });
 
 let startTab = 'goals';
 try { startTab = localStorage.getItem(TAB_KEY) || 'goals'; } catch (e) { /* private mode */ }
