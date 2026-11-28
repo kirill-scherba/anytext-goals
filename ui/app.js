@@ -5,6 +5,80 @@
 // app.js — the screen: goals from the installation's memory, deeds from this module.
 const $ = (id) => document.getElementById(id);
 
+// --- language -----------------------------------------------------------------------------------
+// The installation keeps its language in anytext.lang; a module that speaks only Russian is a module
+// half its people cannot use.
+const LANGS = ['ru', 'en'];
+
+function storedLang() {
+  try {
+    const value = localStorage.getItem('anytext.lang');
+    if (LANGS.includes(value)) return value;
+  } catch (e) { /* private mode: the system language is enough */ }
+  const system = (navigator.language || '').toLowerCase();
+  return system.startsWith('ru') ? 'ru' : 'en';
+}
+
+let lang = storedLang();
+
+const STRINGS = {
+  ru: {
+    title: 'Цели', goalsTab: 'Цели', deedsTab: 'Дела', refresh: 'Перечитать',
+    searchGoals: 'поиск по целям', searchDeeds: 'поиск по делам',
+    filterActive: 'активные', filterCompleted: 'закрытые', filterArchived: 'в архиве',
+    filterStale: 'не двигались', filterAll: 'все',
+    newGoal: '+ Цель', addGoal: 'Добавить цель', save: 'Сохранить', add: 'Добавить', cancel: 'Отмена',
+    goalTitlePh: 'чего хотите достичь', priorityPh: 'приоритет', labelsPh: 'метки через запятую',
+    descPh: 'описание (необязательно)', deedPh: 'что сделать', withoutGoal: 'без цели',
+    showDone: 'показывать закрытые', noGoals: 'Целей нет.', noDeeds: 'Дел нет.',
+    stale: 'Не двигались три месяца: {n}. Показать',
+    moved: 'двигалась {ago}', today: 'сегодня', yesterday: 'вчера',
+    daysAgo: '{n} дн. назад', monthsAgo: '{n} мес. назад', yearsAgo: '{n} г. назад',
+    overdue: 'просрочено на {n} дн.', dueToday: 'срок сегодня', leftDays: 'осталось {n} дн.',
+    edit: 'изменить', editTitle: 'изменить', plus10: '+10%', minus10: '−10%',
+    toArchive: 'в архив', back: 'вернуть', close: 'закрыть', done: 'сделано', remove: 'удалить',
+    progress: 'прогресс, %', saveHint: 'сохранить (Enter)', cancelHint: 'отменить (Esc)',
+    noLink: 'нет связи с модулем', gateway: 'шлюз {gateway}', version: 'цели {version}',
+    goalMissing: 'нет такой цели',
+  },
+  en: {
+    title: 'Goals', goalsTab: 'Goals', deedsTab: 'Deeds', refresh: 'Reload',
+    searchGoals: 'search goals', searchDeeds: 'search deeds',
+    filterActive: 'active', filterCompleted: 'completed', filterArchived: 'archived',
+    filterStale: 'not moving', filterAll: 'all',
+    newGoal: '+ Goal', addGoal: 'Add a goal', save: 'Save', add: 'Add', cancel: 'Cancel',
+    goalTitlePh: 'what you want to achieve', priorityPh: 'priority', labelsPh: 'labels, comma separated',
+    descPh: 'description (optional)', deedPh: 'what to do', withoutGoal: 'no goal',
+    showDone: 'show completed', noGoals: 'No goals.', noDeeds: 'No deeds.',
+    stale: 'Not moving for three months: {n}. Show',
+    moved: 'moved {ago}', today: 'today', yesterday: 'yesterday',
+    daysAgo: '{n} days ago', monthsAgo: '{n} months ago', yearsAgo: '{n} years ago',
+    overdue: '{n} days overdue', dueToday: 'due today', leftDays: '{n} days left',
+    edit: 'edit', editTitle: 'edit', plus10: '+10%', minus10: '−10%',
+    toArchive: 'archive', back: 'restore', close: 'complete', done: 'done', remove: 'delete',
+    progress: 'progress, %', saveHint: 'save (Enter)', cancelHint: 'cancel (Esc)',
+    noLink: 'the module is not answering', gateway: 'gateway {gateway}', version: 'goals {version}',
+    goalMissing: 'no such goal',
+  },
+};
+
+function t(key, values) {
+  const table = STRINGS[lang] || STRINGS.ru;
+  let text = table[key] !== undefined ? table[key] : key;
+  if (values) {
+    for (const k of Object.keys(values)) text = text.split('{' + k + '}').join(String(values[k]));
+  }
+  return text;
+}
+
+function applyTexts() {
+  document.documentElement.lang = lang;
+  document.title = t('title');
+  for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll('[data-i18n-placeholder]')) el.placeholder = t(el.dataset.i18nPlaceholder);
+  for (const el of document.querySelectorAll('[data-i18n-title]')) el.title = t(el.dataset.i18nTitle);
+}
+
 const state = {
   goals: [],
   deeds: [],
@@ -50,9 +124,9 @@ function deadlineLeft(iso) {
   const due = new Date(iso.slice(0, 10) + 'T23:59:59');
   if (isNaN(due)) return '';
   const days = Math.ceil((due - Date.now()) / 86400000);
-  if (days < 0) return `просрочено на ${-days} дн.`;
-  if (days === 0) return 'сегодня';
-  if (days <= 3) return `осталось ${days} дн.`;
+  if (days < 0) return t('overdue', { n: -days });
+  if (days === 0) return t('dueToday');
+  if (days <= 3) return t('leftDays', { n: days });
   return '';
 }
 
@@ -60,11 +134,11 @@ function deadlineLeft(iso) {
 function ago(ts) {
   if (!ts) return '';
   const days = Math.floor((Date.now() / 1000 - ts) / 86400);
-  if (days <= 0) return 'сегодня';
-  if (days === 1) return 'вчера';
-  if (days < 30) return `${days} дн. назад`;
+  if (days <= 0) return t('today');
+  if (days === 1) return t('yesterday');
+  if (days < 30) return t('daysAgo', { n: days });
   const months = Math.floor(days / 30);
-  return months < 12 ? `${months} мес. назад` : `${Math.floor(months / 12)} г. назад`;
+  return months < 12 ? t('monthsAgo', { n: months }) : t('yearsAgo', { n: Math.floor(months / 12) });
 }
 
 function goalTitle(id) {
@@ -99,15 +173,15 @@ function renderGoals() {
       <div class="bar"><span style="width:${progress}%"></span></div>
       <div class="goal-bottom">
         <input class="progress" type="number" min="0" max="100" step="5" value="${progress}"
-               data-act="progress" title="прогресс, %" /> %
-        ${moved ? `<span class="moved">двигалась ${esc(moved)}</span>` : ''}
+               data-act="progress" title="${esc(t('progress'))}" /> %
+        ${moved ? `<span class="moved">${esc(t('moved', { ago: moved }))}</span>` : ''}
         ${left ? `<span class="left">${esc(left)}</span>` : ''}
         <span class="grow"></span>
-        <button type="button" class="text" data-act="edit" title="изменить">✎</button>
-        <button type="button" class="text" data-act="plus" title="+10%">+10%</button>
-        <button type="button" class="text" data-act="minus" title="−10%">−10%</button>
-        <button type="button" class="text" data-act="pause">${g.status === 'archived' ? 'вернуть' : 'в архив'}</button>
-        <button type="button" class="text" data-act="done">${g.status === 'completed' ? 'вернуть' : 'закрыть'}</button>
+        <button type="button" class="text" data-act="edit" title="${esc(t('editTitle'))}">✎</button>
+        <button type="button" class="text" data-act="plus" title="${esc(t('plus10'))}">${esc(t('plus10'))}</button>
+        <button type="button" class="text" data-act="minus" title="${esc(t('minus10'))}">${esc(t('minus10'))}</button>
+        <button type="button" class="text" data-act="pause">${esc(g.status === 'archived' ? t('back') : t('toArchive'))}</button>
+        <button type="button" class="text" data-act="done">${esc(g.status === 'completed' ? t('back') : t('close'))}</button>
       </div>
     </li>`;
   }).join('');
@@ -116,7 +190,7 @@ function renderGoals() {
   const stale = state.goals.filter(isStale);
   const box = $('stale');
   box.hidden = stale.length === 0 || state.filter === 'stale';
-  $('show-stale').textContent = stale.length ? `Не двигались три месяца: ${stale.length}. Показать` : '';
+  $('show-stale').textContent = stale.length ? t('stale', { n: stale.length }) : '';
 }
 
 function renderDeeds() {
@@ -129,25 +203,25 @@ function renderDeeds() {
     const left = deadlineLeft(d.due);
     const goal = goalTitle(d.goal);
     if (state.editingDeed === d.id) {
-      const options = ['<option value="">без цели</option>'].concat(
+      const options = [`<option value="">${esc(t('withoutGoal'))}</option>`].concat(
         state.goals.filter((g) => g.status === 'active' || g.id === d.goal)
           .map((g) => `<option value="${esc(g.id)}" ${g.id === d.goal ? 'selected' : ''}>${esc(g.title)}</option>`)).join('');
       return `<li class="deed editing" data-id="${esc(d.id)}">
         <input class="edit-text" value="${esc(d.text)}" maxlength="240" />
         <input class="edit-due" type="date" value="${esc(d.due || '')}" />
         <select class="edit-goal">${options}</select>
-        <button type="button" class="text" data-act="save" title="сохранить (Enter)">✓</button>
-        <button type="button" class="text" data-act="cancel" title="отменить (Esc)">×</button>
+        <button type="button" class="text" data-act="save" title="${esc(t('saveHint'))}">✓</button>
+        <button type="button" class="text" data-act="cancel" title="${esc(t('cancelHint'))}">×</button>
       </li>`;
     }
     return `<li class="deed${d.done ? ' done' : ''}" data-id="${esc(d.id)}">
       <input type="checkbox" ${d.done ? 'checked' : ''} data-act="done" title="сделано" />
-      <span class="deed-text" data-act="edit" title="изменить">${esc(d.text)}</span>
+      <span class="deed-text" data-act="edit" title="${esc(t('editTitle'))}">${esc(d.text)}</span>
       ${goal ? `<span class="goal-tag">${esc(goal)}</span>` : ''}
       ${left ? `<span class="left">${esc(left)}</span>` : ''}
       <span class="grow"></span>
-      <button type="button" class="text" data-act="edit" title="изменить">✎</button>
-      <button type="button" class="text" data-act="delete" title="удалить">×</button>
+      <button type="button" class="text" data-act="edit" title="${esc(t('editTitle'))}">✎</button>
+      <button type="button" class="text" data-act="delete" title="${esc(t('remove'))}">×</button>
     </li>`;
   }).join('');
   $('deeds-empty').hidden = visible.length > 0;
@@ -155,7 +229,7 @@ function renderDeeds() {
 
 function renderGoalPicker() {
   const select = $('deed-goal');
-  select.innerHTML = '<option value="">без цели</option>' +
+  select.innerHTML = `<option value="">${esc(t('withoutGoal'))}</option>` +
     state.goals.filter((g) => g.status === 'active').map((g) => `<option value="${esc(g.id)}">${esc(g.title)}</option>`).join('');
 }
 
@@ -202,9 +276,9 @@ async function load() {
 async function loadStatus() {
   try {
     const s = await api('api/status');
-    $('status').textContent = `цели ${s.version} · шлюз ${s.gateway}`;
+    $('status').textContent = `${t('version', { version: s.version })} · ${t('gateway', { gateway: s.gateway })}`;
   } catch (e) {
-    $('status').textContent = 'нет связи с модулем';
+    $('status').textContent = t('noLink');
   }
 }
 
@@ -253,7 +327,7 @@ function openGoalForm(goal) {
   $('goal-deadline').value = goal && goal.deadline ? String(goal.deadline).slice(0, 10) : '';
   $('goal-priority').value = goal && goal.priority ? goal.priority : '';
   $('goal-labels').value = goal ? (goal.labels || []).join(', ') : '';
-  $('goal-save').textContent = goal ? 'Сохранить' : 'Добавить цель';
+  $('goal-save').textContent = goal ? t('save') : t('addGoal');
   $('goal-form').hidden = false;
   $('goal-title').focus();
 }
@@ -412,6 +486,8 @@ $('show-done').addEventListener('change', (ev) => {
 });
 
 $('refresh').addEventListener('click', () => load());
+
+applyTexts();
 
 let startTab = 'goals';
 try { startTab = localStorage.getItem(TAB_KEY) || 'goals'; } catch (e) { /* private mode */ }

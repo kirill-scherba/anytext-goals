@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <base href="{{.Prefix}}/" />
-  <title>Цели</title>
+  <title data-i18n="title">Цели</title>
   <style>{{.Style}}</style>
 </head>
 <body>
   <header>
-    <span class="name">Цели</span>
+    <span class="name" data-i18n="goalsTab">Цели</span>
     <span class="badges" id="badges"></span>
-    <button type="button" class="text" id="refresh" title="Перечитать">⟳</button>
+    <button type="button" class="text" id="refresh" data-i18n-title="refresh" title="Перечитать">⟳</button>
   </header>
 
   <main>
@@ -20,57 +20,57 @@
     <!-- Two tabs: goals and deeds are different rhythms (weeks against days), and a list at the bottom
          of the other one is how deeds went unnoticed (27.11.2026). -->
     <nav class="tabs" id="tabs">
-      <button type="button" data-tab="goals" class="active">Цели <span class="count" id="count-goals"></span></button>
-      <button type="button" data-tab="deeds">Дела <span class="count" id="count-deeds"></span></button>
+      <button type="button" data-tab="goals" class="active"><span data-i18n="goalsTab">Цели</span> <span class="count" id="count-goals"></span></button>
+      <button type="button" data-tab="deeds"><span data-i18n="deedsTab">Дела</span> <span class="count" id="count-deeds"></span></button>
     </nav>
 
     <section id="tab-goals">
       <div class="section-head">
-        <h2>Цели</h2>
-        <input id="goal-search" type="search" placeholder="поиск по целям" />
+        <h2 data-i18n="goalsTab">Цели</h2>
+        <input id="goal-search" type="search" data-i18n-placeholder="searchGoals" placeholder="поиск по целям" />
         <select id="goal-filter">
-          <option value="active">активные</option>
-          <option value="completed">закрытые</option>
-          <option value="archived">в архиве</option>
-          <option value="stale">не двигались</option>
-          <option value="all">все</option>
+          <option value="active" data-i18n="filterActive">активные</option>
+          <option value="completed" data-i18n="filterCompleted">закрытые</option>
+          <option value="archived" data-i18n="filterArchived">в архиве</option>
+          <option value="stale" data-i18n="filterStale">не двигались</option>
+          <option value="all" data-i18n="filterAll">все</option>
         </select>
-        <button type="button" class="text" id="new-goal">+ Цель</button>
+        <button type="button" class="text" id="new-goal" data-i18n="newGoal">+ Цель</button>
       </div>
 
       <form id="goal-form" class="card" hidden>
-        <input id="goal-title" placeholder="чего хотите достичь" maxlength="160" />
+        <input id="goal-title" data-i18n-placeholder="goalTitlePh" placeholder="чего хотите достичь" maxlength="160" />
         <input id="goal-deadline" type="date" title="срок" />
-        <input id="goal-priority" type="number" min="0" max="10" placeholder="приоритет" />
-        <input id="goal-labels" placeholder="метки через запятую" maxlength="120" />
-        <textarea id="goal-description" rows="2" placeholder="описание (необязательно)"></textarea>
+        <input id="goal-priority" type="number" min="0" max="10" data-i18n-placeholder="priorityPh" placeholder="приоритет" />
+        <input id="goal-labels" data-i18n-placeholder="labelsPh" placeholder="метки через запятую" maxlength="120" />
+        <textarea id="goal-description" rows="2" data-i18n-placeholder="descPh" placeholder="описание (необязательно)"></textarea>
         <div class="row">
-          <button type="submit" class="primary" id="goal-save">Добавить цель</button>
-          <button type="button" class="text" id="goal-cancel">Отмена</button>
+          <button type="submit" class="primary" id="goal-save" data-i18n="addGoal">Добавить цель</button>
+          <button type="button" class="text" id="goal-cancel" data-i18n="cancel">Отмена</button>
         </div>
       </form>
 
       <ul class="goals" id="goals"></ul>
-      <p class="empty" id="goals-empty" hidden>Целей нет.</p>
+      <p class="empty" id="goals-empty" hidden data-i18n="noGoals">Целей нет.</p>
       <p class="stale" id="stale" hidden><button type="button" class="text" id="show-stale"></button></p>
     </section>
 
     <section id="tab-deeds" hidden>
       <div class="section-head">
-        <h2>Дела</h2>
-        <input id="deed-search" type="search" placeholder="поиск по делам" />
-        <label class="check"><input type="checkbox" id="show-done" /> показывать закрытые</label>
+        <h2 data-i18n="deedsTab">Дела</h2>
+        <input id="deed-search" type="search" data-i18n-placeholder="searchDeeds" placeholder="поиск по делам" />
+        <label class="check"><input type="checkbox" id="show-done" /> <span data-i18n="showDone">показывать закрытые</span></label>
       </div>
 
       <form id="deed-form" class="row">
-        <input id="deed-text" placeholder="что сделать" maxlength="240" />
+        <input id="deed-text" data-i18n-placeholder="deedPh" placeholder="что сделать" maxlength="240" />
         <input id="deed-due" type="date" title="срок" />
         <select id="deed-goal" title="какую цель двигает"></select>
-        <button type="submit" class="primary">Добавить</button>
+        <button type="submit" class="primary" data-i18n="add">Добавить</button>
       </form>
 
       <ul class="deeds" id="deeds"></ul>
-      <p class="empty" id="deeds-empty" hidden>Дел нет.</p>
+      <p class="empty" id="deeds-empty" hidden data-i18n="noDeeds">Дел нет.</p>
     </section>
   </main>
 

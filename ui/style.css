@@ -190,3 +190,6 @@ footer {
 .deed .edit-text { flex: 1 1 200px; min-width: 120px; }
 .deed .edit-due { width: 140px; }
 .deed .edit-goal { max-width: 180px; }
+
+/* The language switch of the installation: a module that speaks only Russian is a module half its
+   people cannot use (28.11.2026). */
