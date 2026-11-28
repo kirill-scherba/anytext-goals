@@ -37,7 +37,7 @@ const STRINGS = {
     overdue: 'просрочено на {n} дн.', dueToday: 'срок сегодня', leftDays: 'осталось {n} дн.',
     edit: 'изменить', editTitle: 'изменить', plus10: '+10%', minus10: '−10%',
     toArchive: 'в архив', back: 'вернуть', close: 'закрыть', done: 'сделано', remove: 'удалить',
-    progress: 'прогресс, %', saveHint: 'сохранить (Enter)', cancelHint: 'отменить (Esc)',
+    progress: 'прогресс, %', due: 'срок', saveHint: 'сохранить (Enter)', cancelHint: 'отменить (Esc)',
     noLink: 'нет связи с модулем', gateway: 'шлюз {gateway}', version: 'цели {version}',
     goalMissing: 'нет такой цели',
   },
@@ -56,7 +56,7 @@ const STRINGS = {
     overdue: '{n} days overdue', dueToday: 'due today', leftDays: '{n} days left',
     edit: 'edit', editTitle: 'edit', plus10: '+10%', minus10: '−10%',
     toArchive: 'archive', back: 'restore', close: 'complete', done: 'done', remove: 'delete',
-    progress: 'progress, %', saveHint: 'save (Enter)', cancelHint: 'cancel (Esc)',
+    progress: 'progress, %', due: 'due date', saveHint: 'save (Enter)', cancelHint: 'cancel (Esc)',
     noLink: 'the module is not answering', gateway: 'gateway {gateway}', version: 'goals {version}',
     goalMissing: 'no such goal',
   },
@@ -87,6 +87,7 @@ const state = {
   goalQuery: '',
   deedQuery: '',
   editingDeed: '',
+  editingGoal: '',
 };
 
 // matches answers whether the text contains the query, case-insensitive; an empty query matches all.
@@ -146,27 +147,16 @@ function goalTitle(id) {
   return g ? g.title : '';
 }
 
-function isStale(g) {
-  return g.status === 'active' && g.updated_at && (Date.now() / 1000 - g.updated_at) > 90 * 86400;
-}
-
-function renderGoals() {
-  const ul = $('goals');
-  const visible = state.goals.filter((g) => {
-    if (!matches(state.goalQuery, g.title, g.description, (g.labels || []).join(' '))) return false;
-    if (state.filter === 'all') return true;
-    if (state.filter === 'stale') return isStale(g);
-    return g.status === state.filter;
-  });
-  ul.innerHTML = visible.map((g) => {
-    const left = deadlineLeft(g.deadline);
-    const progress = Math.max(0, Math.min(100, g.progress || 0));
-    const labels = (g.labels || []).map((l) => `<button type="button" class="label" data-label="${esc(l)}">${esc(l)}</button>`).join('');
-    const moved = ago(g.updated_at);
-    return `<li class="goal" data-id="${esc(g.id)}">
+// goalCard is one goal as a person reads it.
+function goalCard(g) {
+  const progress = Math.max(0, Math.min(100, g.progress || 0));
+  const labels = (g.labels || []).map((l) => `<button type="button" class="label" data-label="${esc(l)}">${esc(l)}</button>`).join('');
+  const moved = ago(g.updated_at);
+  const left = deadlineLeft(g.deadline);
+  return `<li class="goal" data-id="${esc(g.id)}">
       <div class="goal-top">
         <span class="title">${esc(g.title)}</span>
-        <span class="prio" title="приоритет">${g.priority || 0}</span>
+        <span class="prio" title="${esc(t('priorityPh'))}">${g.priority || 0}</span>
       </div>
       ${g.description ? `<p class="desc">${esc(g.description)}</p>` : ''}
       ${labels ? `<div class="labels">${labels}</div>` : ''}
@@ -184,7 +174,49 @@ function renderGoals() {
         <button type="button" class="text" data-act="done">${esc(g.status === 'completed' ? t('back') : t('close'))}</button>
       </div>
     </li>`;
-  }).join('');
+}
+
+// goalEditor is the same goal, open for a change, in its own place in the list.
+function goalEditor(g) {
+  const labels = (g.labels || []).join(', ');
+  const deadline = g.deadline ? String(g.deadline).slice(0, 10) : '';
+  return `<li class="goal editing" data-id="${esc(g.id)}">
+      <input class="goal-edit-title" value="${esc(g.title)}" maxlength="160"
+             placeholder="${esc(t('goalTitlePh'))}" />
+      <textarea class="goal-edit-desc" rows="2" placeholder="${esc(t('descPh'))}">${esc(g.description || '')}</textarea>
+      <div class="row">
+        <input class="goal-edit-labels" value="${esc(labels)}" maxlength="120" placeholder="${esc(t('labelsPh'))}" />
+        <input class="goal-edit-deadline" type="date" value="${esc(deadline)}" title="${esc(t('due'))}" />
+        <input class="goal-edit-priority" type="number" min="0" max="10" value="${g.priority || 0}" placeholder="${esc(t('priorityPh'))}" />
+      </div>
+      <div class="row">
+        <button type="button" class="primary" data-act="save">${esc(t('save'))}</button>
+        <button type="button" class="text" data-act="cancel" title="${esc(t('cancelHint'))}">${esc(t('cancel'))}</button>
+      </div>
+    </li>`;
+}
+
+function isStale(g) {
+  return g.status === 'active' && g.updated_at && (Date.now() / 1000 - g.updated_at) > 90 * 86400;
+}
+
+function renderGoals() {
+  const ul = $('goals');
+  const visible = state.goals.filter((g) => {
+    if (!matches(state.goalQuery, g.title, g.description, (g.labels || []).join(' '))) return false;
+    if (state.filter === 'all') return true;
+    if (state.filter === 'stale') return isStale(g);
+    return g.status === state.filter;
+  });
+  // A stable order: by status, then priority, then title. The memory answers in its own order (by
+  // updated_at), and an edited goal jumped to the top of the list — that is what "opening the form
+  // moved the list" was about (28.11.2026).
+  const statusOrder = { active: 0, completed: 1, archived: 2 };
+  visible.sort((a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3) ||
+    (b.priority || 0) - (a.priority || 0) ||
+    String(a.title).localeCompare(String(b.title), lang));
+
+  ul.innerHTML = visible.map((g) => (g.id === state.editingGoal ? goalEditor(g) : goalCard(g))).join('');
   $('goals-empty').hidden = visible.length > 0;
 
   const stale = state.goals.filter(isStale);
@@ -299,7 +331,19 @@ $('goals').addEventListener('click', async (ev) => {
   if (!goal) return;
   const act = btn.dataset.act;
   if (act === 'edit') {
-    openGoalForm(goal);
+    state.editingGoal = goal.id;
+    renderGoals();
+    const field = document.querySelector('li.goal.editing .goal-edit-title');
+    if (field) field.focus();
+    return;
+  }
+  if (act === 'cancel') {
+    state.editingGoal = '';
+    renderGoals();
+    return;
+  }
+  if (act === 'save') {
+    await saveGoalFromCard(li);
     return;
   }
   const body = { id: goal.id };
@@ -318,22 +362,12 @@ $('goals').addEventListener('click', async (ev) => {
   }
 });
 
-let editingGoal = null;
-
-function openGoalForm(goal) {
-  editingGoal = goal || null;
-  $('goal-title').value = goal ? goal.title : '';
-  $('goal-description').value = goal ? goal.description || '' : '';
-  $('goal-deadline').value = goal && goal.deadline ? String(goal.deadline).slice(0, 10) : '';
-  $('goal-priority').value = goal && goal.priority ? goal.priority : '';
-  $('goal-labels').value = goal ? (goal.labels || []).join(', ') : '';
-  $('goal-save').textContent = goal ? t('save') : t('addGoal');
+function openGoalForm() {
   $('goal-form').hidden = false;
   $('goal-title').focus();
 }
 
 function closeGoalForm() {
-  editingGoal = null;
   $('goal-form').hidden = true;
   $('goal-form').reset();
 }
@@ -354,7 +388,7 @@ $('goals').addEventListener('change', async (ev) => {
   }
 });
 
-$('new-goal').addEventListener('click', () => openGoalForm(null));
+$('new-goal').addEventListener('click', openGoalForm);
 
 $('goal-cancel').addEventListener('click', closeGoalForm);
 
@@ -367,13 +401,7 @@ $('goal-form').addEventListener('submit', async (ev) => {
   const description = $('goal-description').value.trim();
   const labels = $('goal-labels').value.trim();
   try {
-    if (editingGoal) {
-      // The memory keeps the labels as a list; an empty field clears them, which is what a person
-      // means by deleting the text there (28.11.2026).
-      await api('api/goals/update', { id: editingGoal.id, title, description, deadline, priority, labels: labels || '[]' });
-    } else {
-      await api('api/goals', { title, deadline, priority, description, labels });
-    }
+    await api('api/goals', { title, deadline, priority, description, labels });
     closeGoalForm();
     await load();
   } catch (e) {
@@ -415,6 +443,28 @@ $('deeds').addEventListener('click', async (ev) => {
   }
 });
 
+// saveGoalFromCard sends what the editing card says. An emptied labels field clears them, which is
+// what a person means by deleting the text there.
+async function saveGoalFromCard(li) {
+  const id = li.dataset.id;
+  const title = li.querySelector('.goal-edit-title').value.trim();
+  if (!title) return;
+  try {
+    await api('api/goals/update', {
+      id,
+      title,
+      description: li.querySelector('.goal-edit-desc').value.trim(),
+      deadline: li.querySelector('.goal-edit-deadline').value,
+      priority: Number(li.querySelector('.goal-edit-priority').value) || 0,
+      labels: li.querySelector('.goal-edit-labels').value.trim() || '[]',
+    });
+    state.editingGoal = '';
+    await load();
+  } catch (e) {
+    showError(e);
+  }
+}
+
 // saveDeed sends what the editing row says: the text, the date and the goal.
 async function saveDeed(li) {
   const id = li.dataset.id;
@@ -430,6 +480,20 @@ async function saveDeed(li) {
     showError(e);
   }
 }
+
+// The same keys in the goal card: Enter saves, Esc drops the change.
+$('goals').addEventListener('keydown', (ev) => {
+  const li = ev.target.closest('li.goal.editing');
+  if (!li) return;
+  if (ev.key === 'Enter' && !ev.shiftKey) {
+    ev.preventDefault();
+    saveGoalFromCard(li);
+  } else if (ev.key === 'Escape') {
+    ev.preventDefault();
+    state.editingGoal = '';
+    renderGoals();
+  }
+});
 
 // Enter saves the row, Esc throws the change away.
 $('deeds').addEventListener('keydown', (ev) => {

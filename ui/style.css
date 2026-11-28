@@ -185,7 +185,7 @@ footer {
 .goal .progress { width: 64px; padding: 2px 4px; font-size: 12px; }
 .goal .moved { font-size: 11px; color: var(--muted); }
 
-.deed .deed-text { cursor: text; }
+.deed .deed-text { cursor: pointer; }  /* it opens the editor, it is not a field */
 .deed.editing { gap: 6px; }
 .deed .edit-text { flex: 1 1 200px; min-width: 120px; }
 .deed .edit-due { width: 140px; }
@@ -193,3 +193,11 @@ footer {
 
 /* The language switch of the installation: a module that speaks only Russian is a module half its
    people cannot use (28.11.2026). */
+
+/* The goal card, open for a change: the fields take the place of the text, nothing moves. */
+.goal.editing { display: flex; flex-direction: column; gap: 6px; }
+.goal .goal-edit-title { font-weight: 500; }
+.goal .goal-edit-desc { resize: vertical; }
+.goal .goal-edit-labels { flex: 1 1 160px; min-width: 120px; }
+.goal .goal-edit-deadline { width: 150px; }
+.goal .goal-edit-priority { width: 90px; }
