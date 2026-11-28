@@ -30,8 +30,8 @@
         <input id="goal-search" type="search" placeholder="поиск по целям" />
         <select id="goal-filter">
           <option value="active">активные</option>
-          <option value="paused">на паузе</option>
-          <option value="done">закрытые</option>
+          <option value="completed">закрытые</option>
+          <option value="archived">в архиве</option>
           <option value="stale">не двигались</option>
           <option value="all">все</option>
         </select>
@@ -42,6 +42,7 @@
         <input id="goal-title" placeholder="чего хотите достичь" maxlength="160" />
         <input id="goal-deadline" type="date" title="срок" />
         <input id="goal-priority" type="number" min="0" max="10" placeholder="приоритет" />
+        <input id="goal-labels" placeholder="метки через запятую" maxlength="120" />
         <textarea id="goal-description" rows="2" placeholder="описание (необязательно)"></textarea>
         <div class="row">
           <button type="submit" class="primary" id="goal-save">Добавить цель</button>

@@ -134,6 +134,7 @@ func (a *app) updateGoal(w http.ResponseWriter, r *http.Request) {
 		Deadline    string `json:"deadline"`
 		Priority    *int   `json:"priority"`
 		Progress    *int   `json:"progress"`
+		Labels      string `json:"labels"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		fail(w, http.StatusBadRequest, err)
@@ -158,6 +159,10 @@ func (a *app) updateGoal(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Priority != nil {
 		args["priority"] = *in.Priority
+	}
+	if in.Labels != "" {
+		// The memory takes a comma-separated list or a JSON array; "[]" clears.
+		args["labels"] = in.Labels
 	}
 	if in.Progress != nil {
 		p := *in.Progress

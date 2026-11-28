@@ -106,8 +106,8 @@ function renderGoals() {
         <button type="button" class="text" data-act="edit" title="изменить">✎</button>
         <button type="button" class="text" data-act="plus" title="+10%">+10%</button>
         <button type="button" class="text" data-act="minus" title="−10%">−10%</button>
-        <button type="button" class="text" data-act="pause">${g.status === 'paused' ? 'вернуть' : 'на паузу'}</button>
-        <button type="button" class="text" data-act="done">${g.status === 'done' ? 'вернуть' : 'закрыть'}</button>
+        <button type="button" class="text" data-act="pause">${g.status === 'archived' ? 'вернуть' : 'в архив'}</button>
+        <button type="button" class="text" data-act="done">${g.status === 'completed' ? 'вернуть' : 'закрыть'}</button>
       </div>
     </li>`;
   }).join('');
@@ -142,7 +142,7 @@ function renderDeeds() {
     }
     return `<li class="deed${d.done ? ' done' : ''}" data-id="${esc(d.id)}">
       <input type="checkbox" ${d.done ? 'checked' : ''} data-act="done" title="сделано" />
-      <span class="text" data-act="edit" title="изменить">${esc(d.text)}</span>
+      <span class="deed-text" data-act="edit" title="изменить">${esc(d.text)}</span>
       ${goal ? `<span class="goal-tag">${esc(goal)}</span>` : ''}
       ${left ? `<span class="left">${esc(left)}</span>` : ''}
       <span class="grow"></span>
@@ -231,8 +231,8 @@ $('goals').addEventListener('click', async (ev) => {
   const body = { id: goal.id };
   if (act === 'plus') body.progress = Math.min(100, (goal.progress || 0) + 10);
   if (act === 'minus') body.progress = Math.max(0, (goal.progress || 0) - 10);
-  if (act === 'pause') body.status = goal.status === 'paused' ? 'active' : 'paused';
-  if (act === 'done') body.status = goal.status === 'done' ? 'active' : 'done';
+  if (act === 'pause') body.status = goal.status === 'archived' ? 'active' : 'archived';
+  if (act === 'done') body.status = goal.status === 'completed' ? 'active' : 'completed';
   btn.disabled = true;
   try {
     await api('api/goals/update', body);
@@ -252,6 +252,7 @@ function openGoalForm(goal) {
   $('goal-description').value = goal ? goal.description || '' : '';
   $('goal-deadline').value = goal && goal.deadline ? String(goal.deadline).slice(0, 10) : '';
   $('goal-priority').value = goal && goal.priority ? goal.priority : '';
+  $('goal-labels').value = goal ? (goal.labels || []).join(', ') : '';
   $('goal-save').textContent = goal ? 'Сохранить' : 'Добавить цель';
   $('goal-form').hidden = false;
   $('goal-title').focus();
@@ -290,11 +291,14 @@ $('goal-form').addEventListener('submit', async (ev) => {
   const deadline = $('goal-deadline').value;
   const priority = Number($('goal-priority').value) || 0;
   const description = $('goal-description').value.trim();
+  const labels = $('goal-labels').value.trim();
   try {
     if (editingGoal) {
-      await api('api/goals/update', { id: editingGoal.id, title, description, deadline, priority });
+      // The memory keeps the labels as a list; an empty field clears them, which is what a person
+      // means by deleting the text there (28.11.2026).
+      await api('api/goals/update', { id: editingGoal.id, title, description, deadline, priority, labels: labels || '[]' });
     } else {
-      await api('api/goals', { title, deadline, priority, description });
+      await api('api/goals', { title, deadline, priority, description, labels });
     }
     closeGoalForm();
     await load();
