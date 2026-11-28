@@ -201,3 +201,30 @@ footer {
 .goal .goal-edit-labels { flex: 1 1 160px; min-width: 120px; }
 .goal .goal-edit-deadline { width: 150px; }
 .goal .goal-edit-priority { width: 90px; }
+
+/* The date control of our own: the browser's own picker speaks the browser's language, and a
+   person who switched the installation to English still saw Russian months (28.11.2026). */
+.datefield { display: inline-flex; align-items: center; gap: 2px; }
+.datefield input { width: 108px; cursor: pointer; }
+.datefield .cal-open { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 6px; padding: 4px 6px; cursor: pointer; }
+
+.cal {
+  position: absolute;
+  z-index: 50;
+  width: 232px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+  padding: 8px;
+  font-size: 13px;
+}
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head button { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; padding: 2px 6px; }
+.cal-week, .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-week span { text-align: center; color: var(--muted); font-size: 11px; }
+.cal-grid button { background: none; border: 0; color: inherit; font: inherit; padding: 4px 0; border-radius: 4px; cursor: pointer; }
+.cal-grid button:hover { background: var(--bg); }
+.cal-grid button.sel { background: var(--accent); color: #fff; }
+.cal-foot { display: flex; justify-content: space-between; margin-top: 6px; }
+.cal-foot button { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 2px 4px; }

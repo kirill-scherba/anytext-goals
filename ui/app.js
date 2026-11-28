@@ -148,6 +148,150 @@ function goalTitle(id) {
 }
 
 // goalCard is one goal as a person reads it.
+
+// --- dates --------------------------------------------------------------------------------------
+// input[type=date] draws its field and its popup in the *browser's* language, not the page's: an
+// installation switched to English still showed "дд.мм.гггг" and Russian month names. The control
+// below is ours, so its words follow the module's language (28.11.2026).
+
+const MONTHS = {
+  ru: ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+};
+const WEEKDAYS = {
+  ru: ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс'],
+  en: ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'],
+};
+
+// isoOf turns a value the memory keeps ("2026-12-01T…" or "2026-12-01") into YYYY-MM-DD.
+function isoOf(value) {
+  if (!value) return '';
+  const m = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+}
+
+// dateText shows a date the way the language writes it: 01.12.2026 or 2026-12-01.
+function dateText(iso) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return lang === 'ru' ? `${d}.${m}.${y}` : `${y}-${m}-${d}`;
+}
+
+// dateField is the markup of one date control: a text field with the value and a calendar button.
+function dateField(iso, opts) {
+  const o = opts || {};
+  const id = o.id ? ` id="${esc(o.id)}"` : '';
+  const cls = o.className ? ` ${o.className}` : '';
+  return `<span class="datefield${cls}"${id} data-iso="${esc(iso || '')}">
+      <input type="text" readonly value="${esc(dateText(iso))}"
+             placeholder="${esc(lang === 'ru' ? 'дд.мм.гггг' : 'yyyy-mm-dd')}" title="${esc(t('due'))}" />
+      <button type="button" class="cal-open" tabindex="-1" title="${esc(t('due'))}">▾</button>
+    </span>`;
+}
+
+// the popup: a month grid of our own, in our own words
+let calendarBox = null;
+
+function closeCalendar() {
+  if (calendarBox) {
+    calendarBox.remove();
+    calendarBox = null;
+  }
+}
+
+function openCalendar(field) {
+  closeCalendar();
+  const iso = field.dataset.iso || '';
+  const today = new Date();
+  const start = iso ? new Date(iso + 'T12:00:00') : today;
+  let year = start.getFullYear();
+  let month = start.getMonth();
+
+  const box = document.createElement('div');
+  box.className = 'cal';
+  calendarBox = box;
+  document.body.appendChild(box);
+
+  const draw = () => {
+    const first = new Date(year, month, 1);
+    const shift = (first.getDay() + 6) % 7; // Monday first
+    const days = new Date(year, month + 1, 0).getDate();
+    const cells = [];
+    for (let i = 0; i < shift; i++) cells.push('<span></span>');
+    for (let d = 1; d <= days; d++) {
+      const cur = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push(`<button type="button" class="${cur === iso ? 'sel' : ''}" data-day="${cur}">${d}</button>`);
+    }
+    box.innerHTML = `<div class="cal-head">
+        <button type="button" data-move="-1">‹</button>
+        <span>${esc(MONTHS[lang][month])} ${year}</span>
+        <button type="button" data-move="1">›</button>
+      </div>
+      <div class="cal-week">${WEEKDAYS[lang].map((w) => `<span>${w}</span>`).join('')}</div>
+      <div class="cal-grid">${cells.join('')}</div>
+      <div class="cal-foot">
+        <button type="button" data-act="today">${esc(t('today'))}</button>
+        <button type="button" data-act="clear">${esc(t('clear'))}</button>
+      </div>`;
+    const rect = field.getBoundingClientRect();
+    const width = 232;
+    box.style.top = `${window.scrollY + rect.bottom + 4}px`;
+    box.style.left = `${Math.max(8, Math.min(window.scrollX + rect.left, window.scrollX + window.innerWidth - width - 8))}px`;
+  };
+
+  box.addEventListener('click', (ev) => {
+    const move = ev.target.closest('[data-move]');
+    if (move) {
+      month += Number(move.dataset.move);
+      if (month < 0) { month = 11; year--; }
+      if (month > 11) { month = 0; year++; }
+      draw();
+      return;
+    }
+    const day = ev.target.closest('[data-day]');
+    if (day) {
+      setDateField(field, day.dataset.day);
+      closeCalendar();
+      return;
+    }
+    const act = ev.target.closest('[data-act]');
+    if (act && act.dataset.act === 'clear') {
+      setDateField(field, '');
+      closeCalendar();
+    } else if (act && act.dataset.act === 'today') {
+      const now = new Date();
+      setDateField(field, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`);
+      closeCalendar();
+    }
+  });
+  draw();
+}
+
+function setDateField(field, iso) {
+  field.dataset.iso = iso;
+  const input = field.querySelector('input');
+  input.value = dateText(iso);
+}
+
+// One handler for every date control on the page.
+document.addEventListener('click', (ev) => {
+  const field = ev.target.closest('.datefield');
+  if (field) {
+    openCalendar(field);
+    return;
+  }
+  if (calendarBox && !ev.target.closest('.cal')) closeCalendar();
+});
+
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') closeCalendar();
+});
+
+// dateValue reads what a field holds.
+function dateValue(field) {
+  return field ? field.dataset.iso || '' : '';
+}
+
 function goalCard(g) {
   const progress = Math.max(0, Math.min(100, g.progress || 0));
   const labels = (g.labels || []).map((l) => `<button type="button" class="label" data-label="${esc(l)}">${esc(l)}</button>`).join('');
@@ -186,7 +330,7 @@ function goalEditor(g) {
       <textarea class="goal-edit-desc" rows="2" placeholder="${esc(t('descPh'))}">${esc(g.description || '')}</textarea>
       <div class="row">
         <input class="goal-edit-labels" value="${esc(labels)}" maxlength="120" placeholder="${esc(t('labelsPh'))}" />
-        <input class="goal-edit-deadline" type="date" value="${esc(deadline)}" title="${esc(t('due'))}" />
+        ${dateField(deadline, { className: 'goal-edit-deadline' })}
         <input class="goal-edit-priority" type="number" min="0" max="10" value="${g.priority || 0}" placeholder="${esc(t('priorityPh'))}" />
       </div>
       <div class="row">
@@ -240,7 +384,7 @@ function renderDeeds() {
           .map((g) => `<option value="${esc(g.id)}" ${g.id === d.goal ? 'selected' : ''}>${esc(g.title)}</option>`)).join('');
       return `<li class="deed editing" data-id="${esc(d.id)}">
         <input class="edit-text" value="${esc(d.text)}" maxlength="240" />
-        <input class="edit-due" type="date" value="${esc(d.due || '')}" />
+        ${dateField(isoOf(d.due), { className: 'edit-due' })}
         <select class="edit-goal">${options}</select>
         <button type="button" class="text" data-act="save" title="${esc(t('saveHint'))}">✓</button>
         <button type="button" class="text" data-act="cancel" title="${esc(t('cancelHint'))}">×</button>
@@ -454,7 +598,7 @@ async function saveGoalFromCard(li) {
       id,
       title,
       description: li.querySelector('.goal-edit-desc').value.trim(),
-      deadline: li.querySelector('.goal-edit-deadline').value,
+      deadline: dateValue(li.querySelector('.goal-edit-deadline')),
       priority: Number(li.querySelector('.goal-edit-priority').value) || 0,
       labels: li.querySelector('.goal-edit-labels').value.trim() || '[]',
     });
@@ -470,7 +614,7 @@ async function saveDeed(li) {
   const id = li.dataset.id;
   const text = li.querySelector('.edit-text').value.trim();
   if (!text) return;
-  const due = li.querySelector('.edit-due').value;
+  const due = dateValue(li.querySelector('.edit-due'));
   const goal = li.querySelector('.edit-goal').value;
   try {
     await api('api/deeds/update', { id, text, due, goal });
@@ -514,7 +658,7 @@ $('deed-form').addEventListener('submit', async (ev) => {
   const text = $('deed-text').value.trim();
   if (!text) return;
   try {
-    await api('api/deeds', { text, due: $('deed-due').value, goal: $('deed-goal').value });
+    await api('api/deeds', { text, due: dateValue($('deed-due')), goal: $('deed-goal').value });
     $('deed-text').value = '';
     await load();
     showTab('deeds');
@@ -552,6 +696,9 @@ $('show-done').addEventListener('change', (ev) => {
 $('refresh').addEventListener('click', () => load());
 
 applyTexts();
+
+// the deed form's date control: rendered once, its value read by dateValue()
+$('deed-due-slot').innerHTML = dateField('', { id: 'deed-due' });
 
 let startTab = 'goals';
 try { startTab = localStorage.getItem(TAB_KEY) || 'goals'; } catch (e) { /* private mode */ }
